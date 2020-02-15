@@ -1,0 +1,6 @@
+*.html
+*.png
+*.csv
+*.cache
+.sshcredentials.sshcredentials
+

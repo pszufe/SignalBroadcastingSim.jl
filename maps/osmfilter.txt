@@ -1,0 +1,1 @@
+osmfilter toronto.osm --keep="highway=primary =secondary =tertiary" --drop-version > torontoF.osm
