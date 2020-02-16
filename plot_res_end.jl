@@ -4,54 +4,76 @@ using Plots
 using Statistics
 using GLM
 
-df = CSV.read("zombiecar2_sweep_res4_end.csv");
-
-
-for c in [:infected_avg, :infected_std, :infected_lo, :infected_hi,
-            :infected_median, :infected_q05, :infected_q95 ]
-    df[!, Symbol(string("pc_",c))] = df[!, c] ./ df.n_agents
-end
-
-
-# log(steps) = 2g_nodes*log(n_agents)/n_agents
+df_e = CSV.read("zombiecar2_sweep_res4_end.csv");
+df_e.pc_median_step = df_e.median_step./df_e.steps
+df = aggregate(df_e, [:n_agents, :discretize_m, :jump, :g_nodes, :g_edges], mean)
+df.assymetry = df.left_tail_sum_mean./df.right_tail_sum_mean
+df.pc_steps_mean = df.median_step_mean ./ df.steps_mean
 
 df.e_sim_time = 2df.g_nodes.*log.(df.n_agents)./df.n_agents
 df.log_n_x_n = log.(df.n_agents)./df.n_agents
 
-resg = DataFrame()
-for g in groupby(df,[:discretize_m, :n_agents, :jump])
-    push!(resg, g[end, :])
-end
+df.log_agents = log.(df.n_agents)
 
 for d in [25.,50.,75.]
-    resgj0 = resg[(resg.jump.==0) .& (resg.discretize_m.==d),:]
-    resgj1 = resg[(resg.jump.==1) .& (resg.discretize_m.==d),:]
-    for dat in [resgj0, resgj1]
-        ols = lm(@formula(log_n_x_n~step), dat)
+    dfj0 = df[(df.jump.==0) .& (df.discretize_m.==d),:]
+    dfj1 = df[(df.jump.==1) .& (df.discretize_m.==d),:]
+    for dat in [dfj0, dfj1]
+        println("COR log_n_x_n $(cor(dat.log_n_x_n, dat.steps_mean))")
+        println("COR n_agents $(cor(dat.n_agents, dat.steps_mean))")
+        println("COR e_sim_time $(cor(dat.e_sim_time, dat.steps_mean))")
+        ols = lm(@formula(steps_mean~e_sim_time), dat)
         #display(ols) #coef(ols)
         println("R2=$(r2(ols))")
     end
 end
 
-function scatterplot(resg, jump)
+function scatterplot(df, jump)
     p = Plots.scatter(xlabel = "Simulation steps", ylabel="Theoretical time: 2n log(k)/k", lab="")
     for discretize_m in [25.0, 50,0, 75.0]
         for jump in [jump]
-            dd = resg[ (resg.discretize_m .== discretize_m) .& (resg.jump .== jump), :]
-            p = Plots.scatter!(p,dd.step,dd.e_sim_time,lab="d=$discretize_m j=$jump")
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
+            p = Plots.scatter!(p,dd.steps_mean,dd.e_sim_time,lab="d=$discretize_m j=$jump")
         end
     end
     p
 end
 
 
-CSV.write( "Theoretical_vs_practical_end.csv", resg)
 
-p=scatterplot(resg, 0)
+function scatterplot2(df, jump)
+    p = Plots.scatter(xlabel = "Simulation steps", ylabel="log(n_agents)", lab="")
+    for discretize_m in [25.0, 50,0, 75.0]
+        for jump in [jump]
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
+            p = Plots.scatter!(p,dd.steps_mean,log.(dd.n_agents)./dd.n_agents,lab="d=$discretize_m j=$jump")
+        end
+    end
+    p
+end
+
+
+function scatterplot3(df, jump)
+    p = Plots.scatter(xlabel = "n_agents", ylabel="assymetry", lab="")
+    for discretize_m in [25.0, 50,0, 75.0]
+        for jump in [jump]
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
+            p = Plots.scatter!(p,dd.n_agents,dd.pc_steps_mean,lab="d=$discretize_m j=$jump")
+        end
+    end
+    p
+end
+
+
+p=scatterplot3(df[df.n_agents .< 1000, :], 0)
+
+p=scatterplot(df, 1)
+
+p=scatterplot2(df, 1)
 savefig(p, "Theoretical_vs_practical_end_jumpN.png")
 
 
-p=scatterplot(resg, 1)
+p=scatterplot(df, 1)
 savefig(p, "Theoretical_vs_practical_end_jumpY.png")
 
 

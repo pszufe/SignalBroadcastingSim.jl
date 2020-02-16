@@ -1,4 +1,4 @@
-# route-bid-model
+# SignalBroadcastingSim.jl
 *Multiagent simulation of message broadcasting in network models of transporation systems.*
 
 | **Documentation** | **Build Status** |
