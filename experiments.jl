@@ -1,5 +1,11 @@
-println("Using $(Threads.nthreads()) threads!")
+#] add OpenStreetMapX DelimitedFiles CSV LightGraphs DataFrames Statistics Distributions HypothesisTests SparseArrays Serialization Parameters LinearAlgebra StatsBase PyCall Conda
+#] precompile
+
+#println("Using $(Threads.nthreads()) threads!")
 #using Revise
+
+
+
 using Pkg
 Pkg.activate(".")
 using SignalBroadcastingSim
@@ -11,6 +17,23 @@ using DataFrames
 using Statistics
 using Distributions, HypothesisTests
 
+using Distributed
+addprocs(Sys.CPU_THREADS)
+println("Number of workers $(nworkers())")
+
+@everywhere using Pkg
+@everywhere Pkg.activate(".")
+@everywhere using SignalBroadcastingSim
+@everywhere using Random
+@everywhere using OpenStreetMapX
+@everywhere using DelimitedFiles, CSV
+@everywhere using LightGraphs
+@everywhere using DataFrames
+@everywhere using Statistics
+@everywhere using Distributions, HypothesisTests
+
+
+
 
 m = OpenStreetMapX.get_map_data("maps", "torontoF.osm")
 #discretize_m = 25
@@ -19,17 +42,22 @@ m = OpenStreetMapX.get_map_data("maps", "torontoF.osm")
 
 dfstepstats = DataFrame()
 dfendstats = DataFrame()
-for n_agents in vcat(10:15:100, 120:20:200, 300:100:1000, 2000:1000:4000)
-    for jump_infect in [false, true]
-        for discretize_m in [75, 50, 25]
+for jump_infect in [false, true]
+    for n_agents in vcat(10:30:100, 150:50:200, 250:150:1000, 2000:1000:10000, 12000:2000:20000)
+        for discretize_m in [50]
             p = ModelParams(n_agents=n_agents, discretize_m=discretize_m, jump_infect=jump_infect)
-            s = Simulation(p,m)
+            s = Simulation(p,m; store_map = false)
             dump(p)
-            simres = simulate_all!(s; reps=40, max_idle=50000)
-            append!(dfstepstats, simres.stepstats)
+            simres = simulate_all!(s; reps=40*96, max_idle=50000)
+            
+			CSV.write("zombiecar2_sweep_res5_step_$(n_agents)_$(jump_infect)_$(discretize_m).csv", simres.stepstats)
+			CSV.write("zombiecar2_sweep_res5_end_$(n_agents)_$(jump_infect)_$(discretize_m).csv", simres.endstats)
+			append!(dfstepstats, simres.stepstats)
             append!(dfendstats, simres.endstats)
         end
     end
+    CSV.write("zombiecar2_sweep_res5_step$(jump_infect).csv", dfstepstats)
+    CSV.write("zombiecar2_sweep_res5_end$(jump_infect).csv", dfendstats)
 end
 
 CSV.write("zombiecar2_sweep_res4_step.csv", dfstepstats)

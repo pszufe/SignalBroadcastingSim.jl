@@ -7,24 +7,34 @@ function resize_filllast!(v::Vector, n::Integer)
 end
 
 function simulate_all!(s0::Simulation; reps=30, max_idle=500)::NamedTuple{(:stepstats, :endstats),Tuple{DataFrame,DataFrame}}
+    statefile = tempname()
+    println(statefile)
+    serialize(statefile, s0)
     res_infected_count = Vector{Vector{Int}}(undef, reps)
     res_m = Vector{Vector{Float64}}(undef, reps)
-    ss = [deepcopy(s0) for i in 1:Threads.nthreads()]
-    Threads.@threads for rep in 1:reps
-        s = ss[Threads.threadid()]
+    worker_ids = Vector{Int}(undef, reps)
+    #ss = [deepcopy(s0) for i in 1:Threads.nthreads()]
+    #Threads.@threads for rep in 1:reps
+    rrs = @distributed (append!) for rep in 1:reps
+        local s = deserialize(statefile)
         Random.seed!(rep);
         init!(s)
         simulate_steps!(s; max_idle = max_idle)
-        res_infected_count[rep] = copy(s.step_infected_agents_count)
-        res_m[rep] = copy(s.step_total_avg_m_driven)
+        r_inf_count = copy(s.step_infected_agents_count)
+        r_m = copy(s.step_total_avg_m_driven)
+        [(rep=rep, r_inf_count=r_inf_count, r_m=r_m, worker_id=myid())]
     end
-
+    for rr in rrs
+        res_infected_count[rr.rep] = rr.r_inf_count
+        res_m[rr.rep] = rr.r_m
+        worker_ids[rr.rep] = rr.worker_id
+    end
     dfend = DataFrame(rep_no=Int[],steps=Int[],total_m_driven=Float64[],
         median_step=Int[],
         left_tail_sum=Float64[],
         right_tail_sum=Float64[],
         n_agents=Int[], discretize_m=Float64[] ,jump=Bool[],
-        g_nodes=Int[], g_edges=Int[])
+        g_nodes=Int[], g_edges=Int[],worker_id=Int[])
     half_agents = ceil(Int, s0.p.n_agents/2)
     for rep in 1:reps
         med = findfirst(>=(half_agents), res_infected_count[rep])
@@ -34,7 +44,7 @@ function simulate_all!(s0::Simulation; reps=30, max_idle=500)::NamedTuple{(:step
             sum(res_infected_count[rep][1:med])/s0.p.n_agents,
             steps_no-med+1-sum(res_infected_count[rep][med:steps_no])/s0.p.n_agents,
             s0.p.n_agents, s0.p.discretize_m, s0.p.jump_infect,
-            nv(s0.g), ne(s0.g) ))
+            nv(s0.g), ne(s0.g), worker_ids[rep] ))
     end
 
     maxlen = maximum(length.(res_infected_count))

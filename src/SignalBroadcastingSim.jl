@@ -15,6 +15,8 @@ using DelimitedFiles
 using Statistics
 using StatsBase
 using PyCall
+using Serialization
+using Distributed
 
 export Simulation
 export ModelParams

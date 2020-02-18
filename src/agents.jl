@@ -31,7 +31,7 @@ end
 	w::SparseMatrixCSC{Float64,Int64}  #edge weights
 	vertex_meta::Vector{VertexMeta}
 	agents::Vector{Agent}
-	m::OpenStreetMapX.MapData
+	m::Union{OpenStreetMapX.MapData, Nothing}
 	map_g_connected_points::Vector{Int}
 	occupied_vertices::Set{Int}
 	infected_agents::Set{Int}
@@ -40,7 +40,7 @@ end
 		#total number of meters driven by an average car
 end
 
-function Simulation(p::ModelParams, m::MapData)
+function Simulation(p::ModelParams, m::MapData; store_map::Bool=true)
 	map_g_connected_points = sort(LightGraphs.strongly_connected_components(m.g),
 	                    lt=(x,y)->length(x)<length(y), rev=true)[1]
 	sort!(map_g_connected_points)
@@ -93,7 +93,8 @@ function Simulation(p::ModelParams, m::MapData)
 
 	Simulation(	p=p, g=g, w=w, vertex_meta=vertex_meta,
 	 			agents=Vector{Agent}(undef, p.n_agents),
-				m=m, map_g_connected_points=map_g_connected_points,
+				m=( store_map ? m : nothing ),
+				map_g_connected_points=map_g_connected_points,
 				occupied_vertices = Set{Int}(),
 				infected_agents = Set{Int}(),
 				step_infected_agents_count = Vector{Int}(),
