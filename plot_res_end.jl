@@ -4,7 +4,14 @@ using Plots
 using Statistics
 using GLM
 
-df_e = CSV.read("zombiecar2_sweep_res5_endfalse.csv");
+using Latexify
+
+
+
+
+
+
+df_e = CSV.read("zombiecar2_sweep_res5_endtrue.csv");
 df_e.pc_median_step = df_e.median_step./df_e.steps
 df = aggregate(df_e, [:n_agents, :discretize_m, :jump, :g_nodes, :g_edges], mean)
 df.assymetry = df.left_tail_sum_mean./df.right_tail_sum_mean
@@ -15,115 +22,198 @@ df.log_n_x_n = log.(df.n_agents)./df.n_agents
 
 df.log_agents = log.(df.n_agents)
 
-for d in [50.]
-    dfj0 = df[(df.jump.==0) .& (df.discretize_m.==d),:]
-    dfj1 = df[(df.jump.==1) .& (df.discretize_m.==d),:]
-    for dat in [dfj0]
+
+r = DataFrame(discretization=Int[],jump=String[], R2=Float64[])
+for d in [25., 50., 75.]
+    for jj in [false, true]
+        dat = df[(df.jump.==jj) .& (df.discretize_m.==d),:]
         println("COR log_n_x_n $(cor(dat.log_n_x_n, dat.steps_mean))")
         println("COR n_agents $(cor(dat.n_agents, dat.steps_mean))")
         println("COR e_sim_time $(cor(dat.e_sim_time, dat.steps_mean))")
         ols = lm(@formula(steps_mean~e_sim_time), dat)
         #display(ols) #coef(ols)
         println("R2=$(r2(ols))")
+        push!(r,(d,(jj ? "Y" : "N"),round(cor(dat.log_n_x_n, dat.steps_mean),digits=6) ))
+    end
+end
+println(latexify(r, env=:table))
+
+
+r = DataFrame(jump=String[], R2=Float64[])
+jj = false
+for jj in [false, true]
+    dat = df[(df.jump.==1) ,:]
+    println("COR log_n_x_n $(cor(dat.log_n_x_n, dat.steps_mean))")
+    println("COR n_agents $(cor(dat.n_agents, dat.steps_mean))")
+    println("COR e_sim_time $(cor(dat.e_sim_time, dat.steps_mean))")
+    ols = lm(@formula(steps_mean~e_sim_time), dat)
+    #display(ols) #coef(ols)
+    println("R2=$(r2(ols))")
+    push!(r,((jj ? "Y" : "N"),round(cor(dat.e_sim_time, dat.steps_mean),digits=6) ))
+end
+println(latexify(r, env=:table))
+
+
+function savefig2(plot,filename; twidth=raw"\columnwidth", replace_y_lab_pos=nothing)
+    savefig(plot,filename)
+    dat = read(filename, String)
+    open(filename, "w") do f
+        println(f,raw"\resizebox{"*twidth*"}{!}{%")
+        if replace_y_lab_pos != nothing
+            dat = replace(dat, "ylabel style={"=>"ylabel style={at={(axis description cs:$(replace_y_lab_pos))}")
+        end
+
+        println(f, dat)
+        println(f,raw"}")
     end
 end
 
-function scatterplot(df, jumps)
-    p = Plots.scatter(xlabel = "Simulation steps", ylabel="Theoretical time: 2n log(k)/k", lab="")
-    for discretize_m in [50,0]
-        for jump in jumps
-            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
-            p = Plots.scatter!(p,dd.steps_mean,dd.e_sim_time,lab="d=$discretize_m j=$jump")
+function scatterplot(df, jumps=[true,false])
+    p = Plots.scatter(xlabel = "Steps requred to deliver message to all participants",
+        ylabel="Theoretical time: \$n*log(k)/k\$", lab="", legend=:bottomright)
+    shps=Dict(true=>:cross, false=>:star5)
+    for jj in jumps
+        dd = df[(df.jump .== jj), :]
+        p = Plots.scatter!(p,dd.steps_mean,dd.e_sim_time,
+            markershape=shps[jj],
+            markerstrokecolor=:black,
+            lab="Jump-over: $(jj ? "Yes" : "No" )")
+    end
+    p
+end
+
+Plots.pgfplotsx()
+
+fig = scatterplot(df[ df.n_agents .> 1, :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/jump_yes_vs_no.tex", replace_y_lab_pos="-0.04,0.5")
+
+function scatterplot2(df)
+    p = Plots.scatter(
+        xlabel="Number of agents --- \$k\$", lab="", legend=:topright, yguide_position="-100, -100")
+    ylabel!(p, "Steps requred to deliver message to all participants";left_margin="4cm")
+    lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
+    shps=Dict(true=>:cross, false=>:star5)
+    for discretize_m in [25, 50, 75]
+        for jj in [true,false]
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+            p = Plots.scatter!(p,dd.n_agents, dd.steps_mean,
+                markershape=shps[jj],
+                markerstrokecolor=lcls[discretize_m],
+                lab="Distance=$(discretize_m)m \\ \\ \\ \\ \\ Jump-over=$(jj ? "Yes" : "No" )")
+        end
+    end
+    p
+end
+
+Plots.pgfplotsx()
+
+fig = scatterplot2(df[ df.n_agents .> 40 , :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/number_of_agents_vs_steps_min_agent70.pdf")
+
+
+
+function scatterplot2logk(df)
+    p = Plots.scatter(xlabel = "Steps requred to deliver message to all participants",
+        ylabel="\$log(k)/k\$", lab="", legend=:bottomright)
+    lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
+    shps=Dict(true=>:cross, false=>:star5)
+    for discretize_m in [25, 50, 75]
+        for jj in [true,false]
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+            p = Plots.scatter!(p,dd.steps_mean,log.(dd.n_agents)./dd.n_agents,
+                markershape=shps[jj],
+                markerstrokecolor=lcls[discretize_m],
+                lab="Distance=$(discretize_m)m, Jump-over: $(jj ? "Yes" : "No" )")
+        end
+    end
+    p
+end
+
+Plots.pgfplotsx()
+fig = scatterplot2logk(df[ df.n_agents .> 1, :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatterplotlogk_over_k.pdf")
+
+function scatterplot_assy_median(df, jumps=[true,false])
+    p = Plots.scatter(
+        xlabel="Number of agents --- \$k\$", lab="", legend=:bottomright)
+    ylabel!(p, "Percantage of simulation steps where half agents are infeteted")
+    lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
+    shps=Dict(true=>:cross, false=>:star5)
+    for discretize_m in [25,50,75]
+        for jj in jumps
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+            Plots.scatter!(p,dd.n_agents,dd.pc_steps_mean,
+                markershape=shps[jj],
+                markerstrokecolor=lcls[discretize_m],
+                lab="Distance=$(discretize_m)m, Jump-over: $(jj ? "Yes" : "No" )")
+        end
+    end
+    p
+end
+
+Plots.pgfplotsx()
+fig = scatterplot_assy_median(df[ df.n_agents .> 1, :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatterplot_assy_median.pdf")
+
+
+function scatter_assymetry_left_right(df, jumps=[true, false])
+    p = Plots.scatter(
+        xlabel="Number of agents --- \$k\$", lab="", legend=:bottomright)
+    ylabel!(p, raw"Assymetry = $ left\_tail / upper\_right\_tail $")
+    lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
+    shps=Dict(true=>:cross, false=>:star5)
+    for discretize_m in [25,50,75]
+        for jj in jumps
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+            Plots.scatter!(p,dd.n_agents,dd.assymetry,
+                markershape=shps[jj],
+                markerstrokecolor=lcls[discretize_m],
+                lab="Distance=$(discretize_m)m, Jump-over: $(jj ? "Yes" : "No" )")
         end
     end
     p
 end
 
 
+fig = scatter_assymetry_left_right(df[ df.n_agents .> 1, :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatter_assymetry_left_right.pdf")
 
-function scatterplot2(df, jumps)
-    p = Plots.scatter(xlabel = "Simulation steps", ylabel="log(n_agents)", lab="")
-    for discretize_m in [50.0]
-        for jump in jumps
-            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
-            p = Plots.scatter!(p,dd.steps_mean,log.(dd.n_agents)./dd.n_agents,lab="d=$discretize_m j=$jump")
+
+
+
+
+function scatter_assymetry_both_median_left_right(df)
+    p = Plots.scatter(
+        xlabel="Percentage of simulation steps where half agents are infeteted", lab="", legend=:bottomright)
+    ylabel!(p, raw"Assymetry = $ left\_tail / upper\_right\_tail $")
+    shps=Dict(25=>:circle, 50=>:rect, 75=>:diamond)
+
+    for discretize_m in [25,50,75]
+        jj = true
+        dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+        Plots.scatter!(p, dd.pc_steps_mean[1:1],dd.assymetry[1:1],
+            lab="Distance=$(discretize_m)m, Jump-over: $(jj ? "Yes" : "No" )",
+            markershape=shps[discretize_m], color=:black )
+    end
+
+    for discretize_m in [25,50,75]
+        for jj in [true]
+            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jj), :]
+
+            Plots.scatter!(p,dd.pc_steps_mean,dd.assymetry,
+                markershape=shps[discretize_m],
+                zcolor=log.(dd.n_agents), palette=:balance,
+                markerstrokecolor=nothing,
+                lab="")
+
         end
     end
     p
 end
 
+fig = scatter_assymetry_both_median_left_right(df[ df.n_agents .> 1, :])
+savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatter_assymetry_both_median_left_right_pdf.pdf", replace_y_lab_pos="-0.028,0.5")
 
-function scatterplot3(df, jumps)
-    p = Plots.scatter(xlabel = "n_agents", ylabel="% of simulation steps where half agents are infeteted", lab="", legend=:bottomright)
-    for discretize_m in [50]
-        for jump in jumps
-            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
-            p = Plots.scatter!(p,dd.n_agents,dd.pc_steps_mean,lab="d=$discretize_m j=$jump")
-        end
-    end
-    p
-end
-
-
-function scatterplot4(df, jumps)
-    p = Plots.scatter(xlabel = "n_agents", ylabel="Assymetry - (left tail)/(1 - right tail)", lab="", legend=:bottomright)
-    for discretize_m in [50]
-        for jump in jumps
-            dd = df[ (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
-            p = Plots.scatter!(p,dd.n_agents,dd.assymetry,lab="d=$discretize_m j=$jump")
-        end
-    end
-    p
-end
-
-
-
-
-
-p=scatterplot3(df[df.n_agents .< 100_000, :], 0)
-
-
-savefig(p, "Steps_to_get_halfagents_infected.png")
-p=scatterplot3(df[df.n_agents .<= 1000, :], 0)
-
-savefig(p, "Steps_to_get_halfagents_infected_up_t0_1000_agents.png")
-
-
-p=scatterplot4(df[df.n_agents .< 100_000, :], 0)
-savefig(p, "Assymetry.png")
-p=scatterplot4(df[df.n_agents .<= 1000, :], 0)
-savefig(p, "Assymetry_up_t0_1000_agents.png")
-
-
-
-p=scatterplot(df, 0)
-
-p=scatterplot2(df, 0)
-
-
-p=scatterplot(df, 1)
-savefig(p, "Theoretical_vs_practical_end_jumpY.png")
-
-
-
-using Plots
-pyplot()
-p = Plots.scatter(; lab="")
-Plots.scatter!(p, [1], [2]; lab="point 1")
-Plots.scatter!(p, [3], [4]; lab="point 2")
-Plots.scatter!(p, [5], [6]; lab="point 3")
-
-
-
-function get_slice(df::DataFrame; n_agents=500, discretize_m=50.0, jump=0)
-    df[ (df.n_agents.==n_agents) .& (df.discretize_m .== discretize_m) .& (df.jump .== jump), :]
-end
-
-function plot_res!(p, d, color, lab)
-    Plots.plot!(p, d.step, d.pc_infected_avg; linestyle=:solid, lab=lab, color=color)
-    Plots.plot!(p, d.step, d.pc_infected_q05; linestyle=:dash, lab="", color=color)
-    Plots.plot!(p, d.step, d.pc_infected_q95; linestyle=:dash, lab="", color=color)
-end
 
 
 function plot_sim_res(df::DataFrame,
@@ -149,106 +239,3 @@ function plot_sim_res(df::DataFrame,
     filename!=nothing && savefig(p, filename)
     p
 end
-
-plot_sim_res(df, [
-    (n_agents=100, discretize_m=50.0, jump=0 ),
-    (n_agents=200, discretize_m=50.0, jump=0 ),
-    (n_agents=500, discretize_m=50.0, jump=0 ),
-    (n_agents=1000, discretize_m=50.0, jump=0 ),
-    (n_agents=2000, discretize_m=50.0, jump=0 ),
-    (n_agents=3000, discretize_m=50.0, jump=0 ),
-    (n_agents=4000, discretize_m=50.0, jump=0 ),
-]; filename="change_of_agent_count_no_jumping_infection.png")
-
-
-plot_sim_res(df, [
-    (n_agents=10, discretize_m=50.0, jump=0 ),
-    (n_agents=25, discretize_m=50.0, jump=0 ),
-    (n_agents=40, discretize_m=50.0, jump=0 ),
-    (n_agents=55, discretize_m=50.0, jump=0 ),
-]; filename="change_of_agent_count_no_jumping_infection.png")
-
-
-plot_sim_res(df, [
-    (n_agents=4000, discretize_m=50.0, jump=0 ),
-]; filename="change_of_agent_count_no_jumping_infection.png")
-
-
-s = get_slice(df;n_agents=4000, discretize_m=50.0, jump=0 )
-
-get_median_step_infected(s)
-
-plot_sim_res(df, [
-    (n_agents=50, discretize_m=50.0, jump=1 ),
-    (n_agents=100, discretize_m=50.0, jump=1 ),
-    (n_agents=200, discretize_m=50.0, jump=1 ),
-    (n_agents=500, discretize_m=50.0, jump=1 ),
-    (n_agents=1000, discretize_m=50.0, jump=1 ),
-    (n_agents=2000, discretize_m=50.0, jump=1 ),
-    (n_agents=3000, discretize_m=50.0, jump=1 ),
-]; filename="change_of_agent_count_with_jumping_infection.png")
-
-
-
-plot_sim_res(df, [
-    (n_agents=500, discretize_m=25.0, jump=0 ),
-    (n_agents=500, discretize_m=50.0, jump=0 ),
-    (n_agents=500, discretize_m=75.0, jump=0 ),
-]; filename="discretization_levels_no_jumping_infection.png")
-
-
-plot_sim_res(df, [
-    (n_agents=500, discretize_m=25.0, jump=1 ),
-    (n_agents=500, discretize_m=50.0, jump=1 ),
-    (n_agents=500, discretize_m=75.0, jump=1 ),
-
-]; filename="discretization_levels_with_jumping_infection.png")
-
-
-plot_sim_res(df, [
-    (n_agents=1000, discretize_m=50.0, jump=1 ),
-    (n_agents=500, discretize_m=50.0, jump=1 ),
-    (n_agents=200, discretize_m=50.0, jump=1 ),
-    (n_agents=100, discretize_m=50.0, jump=1 ),
-
-    (n_agents=1000, discretize_m=50.0, jump=0 ),
-    (n_agents=500, discretize_m=50.0, jump=0 ),
-    (n_agents=200, discretize_m=50.0, jump=0 ),
-
-    (n_agents=100, discretize_m=50.0, jump=0 ),
-
-]; filename="jumping_vs_no_jumping.png")
-
-
-plot_sim_res(df, [
-    (n_agents=2000, discretize_m=50.0, jump=1 ),
-    (n_agents=2500, discretize_m=50.0, jump=1 ),
-    (n_agents=3000, discretize_m=50.0, jump=1 ),
-    (n_agents=2000, discretize_m=50.0, jump=0 ),
-    (n_agents=2500, discretize_m=50.0, jump=0 ),
-    (n_agents=3000, discretize_m=50.0, jump=0 ),
-]; filename="high_agent_counts.png")
-
-
-df = CSV.read("zombiecar2_sweep_small.csv")
-for c in [:infected, :infected_std, :infected_lo, :infected_hi, ]
-    df[!, Symbol(string("pc_",c))] = df[!, c] ./ df.n_agents
-end
-
-
-for n_agents in 10:10:90
-    plot_sim_res(df, [
-        (n_agents=n_agents, discretize_m=25.0, jump=1 ),
-        (n_agents=n_agents, discretize_m=50.0, jump=1 ),
-        (n_agents=n_agents, discretize_m=75.0, jump=1 ),
-        (n_agents=n_agents, discretize_m=25.0, jump=0 ),
-        (n_agents=n_agents, discretize_m=50.0, jump=0 ),
-        (n_agents=n_agents, discretize_m=75.0, jump=0 ),
-    ]; filename="small_agent_counts$n_agents.png")
-end
-
-p = scatter(df.n_agents, df.steps_mean; xlab="n_agents", ylab="expected number of steps for all infeceted", lab="")
-savefig(p, "Agents_vs_all_infected_time.png")
-
-p = scatter(log.(df.n_agents), log.(df.steps_mean); xlab="log(n_agents)", ylab="log(expected number of steps for all infeceted)", lab="")
-savefig(p, "Log_Agents_vs_all_Log_infected_time.png")

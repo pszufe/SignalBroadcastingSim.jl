@@ -8,7 +8,6 @@ using LightGraphs
 using DataFrames
 using Statistics
 using Distributions, HypothesisTests
-using StructArrays
 using CSV
 m = OpenStreetMapX.get_map_data("maps", "torontoF.osm")
 for discretize_m in [25., 50., 75.]
@@ -31,8 +30,12 @@ for discretize_m in [25., 50., 75.]
     CSV.write("export_toronto_distances_d$(discretize_m)m.csv", dfe)
 end
 
+p = ModelParams(n_agents=0, discretize_m=50)
+s = Simulation(p,m)
+SignalBroadcastingSim.plot_sim(s, "road_network.html")
+
 Random.seed!(20)
-p = ModelParams(n_agents=200, discretize_m=50)
+p = ModelParams(n_agents=500, discretize_m=50)
 s = Simulation(p,m)
 init!(s)
 for i in 1:100

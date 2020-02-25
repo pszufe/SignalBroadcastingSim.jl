@@ -6,18 +6,25 @@ function latlon(s::Simulation,map_g_point_id::Int64)
     return (lla.lat, lla.lon)
 end
 
-function plot_sim(s::Simulation, filename::AbstractString; agentIds=1:min(1000,length(s.agents)) )
+function plot_sim(s::Simulation, filename::AbstractString; agentIds=1:min(1000,length(s.agents)), tiles="Stamen Toner" )
+	MAP_BOUNDS = [( s.m.bounds.min_y, s.m.bounds.min_x),( s.m.bounds.max_y, s.m.bounds.max_x)]
+	map_size = (abs(MAP_BOUNDS[1][1]-MAP_BOUNDS[2][1]), abs(MAP_BOUNDS[1][2]-MAP_BOUNDS[2][2]))
+	MAP_BOUNDSx9 = [ (MAP_BOUNDS[1][1]-map_size[1], MAP_BOUNDS[1][2]-map_size[1]),
+					 (MAP_BOUNDS[2][1]+map_size[1], MAP_BOUNDS[2][2]+map_size[1])]
+
+
+
     flm = pyimport("folium")
     matplotlib_cm = pyimport("matplotlib.cm")
     matplotlib_colors = pyimport("matplotlib.colors")
     cmap = matplotlib_cm.get_cmap("prism")
-    m_plot = flm.Map()
+    m_plot = flm.Map(tiles=tiles)
 
 	map_g_connected_points_set = Set(s.map_g_connected_points)
     for e in edges(s.m.g)
 	    (!(e.src in map_g_connected_points_set) || !(e.dst in map_g_connected_points_set)) && continue;
 		flm.PolyLine( 	(latlon(s,e.src), latlon(s,e.dst)),
-						color="blue", weight=2.5, opacity=1).add_to(m_plot)
+						color="brown", weight=4, opacity=1).add_to(m_plot)
 	end
 
     for vm in s.vertex_meta
