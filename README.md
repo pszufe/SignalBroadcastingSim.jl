@@ -47,3 +47,8 @@ julia plot_single_sim.jl
 
 Sample results:
 ![](sample_sim_state.png)
+
+
+### Acknowledgments
+
+This research was funded, in part, through a generous contribution from [NXM Labs Inc.](https://www.nxmlabs.com/)  NXM’s autonomous security technology enables devices, including connected vehicles, to communicate securely with each other and their surroundings without human intervention while leveraging data at the edge to provide business intelligence and insights. NXM ensures data privacy and integrity by using a novel blockchain-based architecture which enables rapid and regulatory-compliant data monetization.
