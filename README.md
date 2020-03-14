@@ -46,4 +46,4 @@ julia plot_single_sim.jl
 ```
 
 Sample results:
-![](C:\AAABIBLIOTEKA\pralat\zombiecar\SignalBroadcastingSim.jl\sample_sim_state.png)
+![](sample_sim_state.png)
