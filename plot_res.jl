@@ -43,7 +43,8 @@ function plot_sim_res(dfs::DataFrame,
 
     ncolor = max(length(kw_list),2)
     cols = reshape( range(colorant"blue", stop=colorant"red",length=ncolor), 1, ncolor );
-    p = Plots.plot(;xlabel = "Simulation steps", ylabel="Share of agents who received the message", ylim=(0.0,1.1), legend=:bottomright)
+    p = Plots.plot(;xlabel = "Simulation steps", ylabel="Share of agents who received the message", ylim=(0.0,1.1),
+        legend=:bottomright, size=(500,300))
 
     for i in 1:length(labs)
         plot!(p,[0],[0],color=cols[i], lab=labs[i])

@@ -70,14 +70,16 @@ end
 
 function scatterplot(df, jumps=[true,false])
     p = Plots.scatter(xlabel = "Steps requred to deliver message to all participants",
-        ylabel="Theoretical time: \$n*log(k)/k\$", lab="", legend=:bottomright)
+        lab="", legend=:bottomright, size=(320,310))
+    ylabel!(p, "Theoretical time: \$n \\ln k/k\$")
     shps=Dict(true=>:cross, false=>:star5)
+    colrs=Dict(true=>:blue, false=>:red)
     for jj in jumps
         dd = df[(df.jump .== jj), :]
         p = Plots.scatter!(p,dd.steps_mean,dd.e_sim_time,
             markershape=shps[jj],
-            markerstrokecolor=:black,
-            lab="Jump-over: $(jj ? "Yes" : "No" )")
+            markerstrokecolor=colrs[jj],
+            lab="Jump-over = $(jj ? "Yes" : "No" )")
     end
     p
 end
@@ -85,12 +87,13 @@ end
 Plots.pgfplotsx()
 
 fig = scatterplot(df[ df.n_agents .> 1, :])
-savefig2(fig, "../5d63f3b5c3791641ba87e19f/jump_yes_vs_no.tex", replace_y_lab_pos="-0.04,0.5")
+savefig(fig, "../5d63f3b5c3791641ba87e19f/jump_yes_vs_no.pdf")
 
 function scatterplot2(df)
     p = Plots.scatter(
-        xlabel="Number of agents --- \$k\$", lab="", legend=:topright, yguide_position="-100, -100")
-    ylabel!(p, "Steps requred to deliver message to all participants";left_margin="4cm")
+        xlabel="Number of agents --- \$k\$", lab="", legend=:topright,
+        size=(500,400))
+    ylabel!(p, "Steps requred to deliver message to all participants")
     lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
     shps=Dict(true=>:cross, false=>:star5)
     for discretize_m in [25, 50, 75]
@@ -108,13 +111,13 @@ end
 Plots.pgfplotsx()
 
 fig = scatterplot2(df[ df.n_agents .> 40 , :])
-savefig2(fig, "../5d63f3b5c3791641ba87e19f/number_of_agents_vs_steps_min_agent70.pdf")
+savefig(fig, "../5d63f3b5c3791641ba87e19f/number_of_agents_vs_steps_min_agent70.pdf")
 
 
 
 function scatterplot2logk(df)
     p = Plots.scatter(xlabel = "Steps requred to deliver message to all participants",
-        ylabel="\$log(k)/k\$", lab="", legend=:bottomright)
+        ylabel=raw"$\ln k/k$", lab="", legend=:bottomright, size=(400,300))
     lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
     shps=Dict(true=>:cross, false=>:star5)
     for discretize_m in [25, 50, 75]
@@ -123,20 +126,21 @@ function scatterplot2logk(df)
             p = Plots.scatter!(p,dd.steps_mean,log.(dd.n_agents)./dd.n_agents,
                 markershape=shps[jj],
                 markerstrokecolor=lcls[discretize_m],
-                lab="Distance=$(discretize_m)m, Jump-over: $(jj ? "Yes" : "No" )")
+                lab="Discr.=$(discretize_m), \\textit{Jump-over=$(jj ? "Yes" : "No" )}")
         end
     end
     p
 end
 
-Plots.pgfplotsx()
-fig = scatterplot2logk(df[ df.n_agents .> 1, :])
-savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatterplotlogk_over_k.pdf")
+Plots.pgfplotsx();
+fig = scatterplot2logk(df[ df.n_agents .> 1, :]);
+savefig(fig, "../5d63f3b5c3791641ba87e19f/scatterplotlogk_over_k.pdf")
 
 function scatterplot_assy_median(df, jumps=[true,false])
     p = Plots.scatter(
-        xlabel="Number of agents --- \$k\$", lab="", legend=:bottomright)
-    ylabel!(p, "Percantage of simulation steps where half agents are infeteted")
+        xlabel=raw"Number of agents --- $k$", lab="", legend=:bottomright,
+        size=(400,400))
+    ylabel!(p, "Percentage of simulation steps where half agents have received the message")
     lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
     shps=Dict(true=>:cross, false=>:star5)
     for discretize_m in [25,50,75]
@@ -153,12 +157,13 @@ end
 
 Plots.pgfplotsx()
 fig = scatterplot_assy_median(df[ df.n_agents .> 1, :])
-savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatterplot_assy_median.pdf")
+savefig(fig, "../5d63f3b5c3791641ba87e19f/scatterplot_assy_median.pdf")
 
 
 function scatter_assymetry_left_right(df, jumps=[true, false])
     p = Plots.scatter(
-        xlabel="Number of agents --- \$k\$", lab="", legend=:bottomright)
+        xlabel="Number of agents --- \$k\$", lab="", legend=:bottomright,
+        size=(400,300))
     ylabel!(p, raw"Assymetry = $ left\_tail / upper\_right\_tail $")
     lcls=Dict(25=>:green, 50=>:blue, 75=>:red)
     shps=Dict(true=>:cross, false=>:star5)
@@ -176,15 +181,13 @@ end
 
 
 fig = scatter_assymetry_left_right(df[ df.n_agents .> 1, :])
-savefig2(fig, "../5d63f3b5c3791641ba87e19f/scatter_assymetry_left_right.pdf")
-
-
+savefig(fig, "../5d63f3b5c3791641ba87e19f/scatter_assymetry_left_right.pdf")
 
 
 
 function scatter_assymetry_both_median_left_right(df)
     p = Plots.scatter(
-        xlabel="Percentage of simulation steps where half agents are infeteted", lab="", legend=:bottomright)
+        xlabel="Percentage of simulation steps where half agents have received the message", lab="", legend=:bottomright)
     ylabel!(p, raw"Assymetry = $ left\_tail / upper\_right\_tail $")
     shps=Dict(25=>:circle, 50=>:rect, 75=>:diamond)
 
@@ -232,7 +235,7 @@ function plot_sim_res(df::DataFrame,
 
     ncolor = max(length(kw_list),2)
     cols = reshape( range(colorant"blue", stop=colorant"red",length=ncolor), 1, ncolor );
-    p = Plots.plot(;xlabel = "Simulation steps", ylabel="Share of infected", ylim=(0.0,1.1), legend=:bottomright)
+    p = Plots.plot(;xlabel = "Simulation steps", ylabel="Share of agent who received the message", ylim=(0.0,1.1), legend=:bottomright)
     for i in 1:length(kw_list)
         plot_res!(p, ds[i], cols[i], labs[i])
     end

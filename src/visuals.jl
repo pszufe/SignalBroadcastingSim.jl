@@ -53,15 +53,17 @@ function plot_sim(s::Simulation, filename::AbstractString; agentIds=1:min(1000,l
 			"\n<br>Previous node: $(agent.last_node)"*
 			"\n<br>Total distance travelled so far $(round(Int,agent.total_route_len))m"
 		loc = (lla.lat+jitter*randn(), lla.lon+jitter*randn())
-
+		sizex = agent.infected ? 0.00014 : 0.00016
+		sizey = agent.infected ? 0.0002 : 0.00022
         flm.Rectangle(
-			[(loc[1]-0.00014, loc[2]-0.0002), (loc[1]+0.00014, loc[2]+0.0002)],
+			[(loc[1]-sizex, loc[2]-sizey), (loc[1]+sizex, loc[2]+sizey)],
 			popup=info,
 			tooltip=info,
-			color=(agent.infected ? "green" : "red"),
-			weight=6,
-			fill=true,
-			fill_color=(agent.infected ? "green" : "red")
+			color=(agent.infected ? "green" : "black"),
+			weight=(agent.infected ? 5 : 1.5),
+			fill=(agent.infected ? false : true),
+			fill_opacity=(agent.infected ? 0.2 : 1.0),
+			fill_color=(agent.infected ? "green" : "#FAFAFA"),
 		).add_to(m_plot)
     end
 

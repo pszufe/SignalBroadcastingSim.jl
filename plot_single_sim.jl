@@ -23,7 +23,8 @@ init!(s)
 for i in 1:100
     SignalBroadcastingSim.step!(s)
 end
-SignalBroadcastingSim.plot_sim(s, "sample_200agents_discretize50m_after100steps.html")
+#SignalBroadcastingSim.
+plot_sim(s, "sample_200agents_discretize50m_after100steps.html")
 
 Random.seed!(20)
 p = ModelParams(n_agents=10000, discretize_m=50)
@@ -76,4 +77,18 @@ function savefig2(plot,filename; twidth=raw"\columnwidth", replace_y_lab_pos=not
     end
 end
 
-savefig2(plt,"../5d63f3b5c3791641ba87e19f/sample_simulation_run.tex")
+savefig2(plt,"../5d63f3b5c3791641ba87e19f/sample_simulation_run.tex";twidth=raw"0.9\columnwidth")
+
+
+
+plt = plot(lab="", xlim=[0,100],
+    legend=:bottomright,
+    xlabel = "Simulation step number",
+    ylabel="Number of agents that received the message",
+    size=(400,300) );
+
+plot!(plt, 1:steps,s.step_infected_agents_count,
+    lab="Agents that received the message", color=:blue);
+
+
+savefig(plt,"../5d63f3b5c3791641ba87e19f/sample_simulation_run_simple.pdf")
